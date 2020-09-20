@@ -97,18 +97,7 @@ class GetCommomOperation {
             }
         }
 
-    }
-
-//    function checkRedundantz($db, $table, $cols, $condition, $edit = false) {
-//        $selectValidData = $dbobj->_select($table, $columns, $condition);
-//        if ($selectValidData['total'] > 0) {
-//            if(count($selectValidData['values']) > 1){
-//                return false;
-//            }  else {
-//                return true;
-//            }
-//        }
-//    }
+    } 
     public function UpdatetData($db, $table, $bindCol, $condition, $values, $log = FALSE) { //Insert function expects connection variable,tableName, columns(string), condition(string), value(array)
         $sql_select = "UPDATE $table SET $bindCol WHERE $condition";
         $stmt = $db->prepare($sql_select);
