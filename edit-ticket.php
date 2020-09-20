@@ -33,7 +33,6 @@ if(isset($_POST['btnAddTicket'])){
     );
     $get_data = callAPI('PUT', 'https://desk.zoho.in/api/v1/tickets/'.$ticketId.'', json_encode($postData)); // API Call  
     $response = json_decode($get_data, true); // Decode json to array 
-    error_log(json_encode($response['errorCode']));
     if(!empty($response['errorCode'])){
         if($response['errorCode'] == 'INVALID_DATA'){
             $_SESSION['error'] = $response['message'].' at '.$response['errors'][0]['fieldName']; // if invalid data
@@ -54,6 +53,11 @@ if(isset($_POST['btnAddTicket'])){
 <head>
     <?php include (ALUM_TEMPLATES.'metatag.php');?>
     <link href="plugins/bootstrap-select/css/bootstrap-select.css" rel="stylesheet" />
+    <style>
+        .btn:not(.btn-link):not(.btn-circle) i{
+            font-size:12px !important;
+        }
+    </style>
 </head>
 
 <body class="theme-red">
@@ -173,11 +177,14 @@ if(isset($_POST['btnAddTicket'])){
     </section>
     <?php include ALUM_TEMPLATES.'footer.php';?> 
     <script src="plugins/bootstrap-select/js/bootstrap-select.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/froala-editor@3.1.0/css/froala_editor.pkgd.min.css" rel="stylesheet" type="text/css" />
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/froala-editor@3.1.0/js/froala_editor.pkgd.min.js"></script>
+    <!-- include summernote css/js -->
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
     <script>
         $(document).ready(function(){
-            var editor = new FroalaEditor('[name="txtDescription"]');
+            $('[name="txtDescription"]').summernote({
+                placeholder : "Description"
+            });
             $('[name="sltCourseType"]').selectpicker();
         });
     </script>
