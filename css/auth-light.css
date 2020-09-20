@@ -12,7 +12,7 @@ body {
 .btn:hover {color: #000;}
 .login-wish {
     background: url(../images/login-back.jpg) top left/cover no-repeat;
-    height: 415px;
+    height: 500px;
     text-align: center;
     color: #ffffff;
     border-radius: 8px 0px 0px 8px;
