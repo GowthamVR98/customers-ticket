@@ -1,22 +1,39 @@
 <?php
 include 'includes/admin-config.php';
 include_once 'auth.php';
+include 'includes/refresh-token.php';  // API Call function inclded
+if(isset($_GET['ticketId'])){
+    include 'includes/emp-crypto-graphy.php';
+    $SafeCrypto = new SafeCrypto();
+    $ticketId = $SafeCrypto->decrypt(trim($_GET['ticketId']));
+    $get_data = callAPI('GET', 'https://desk.zoho.in/api/v1/tickets/'.$ticketId.'?include=contacts,products,assignee,departments,team', false); // API Call  
+    $response = json_decode($get_data, true); // Decode json to array 
+    if(!empty($response['errorCode'])){
+        $_SESSION['error'] = $response['message']; // if invalid token
+        if($response['errorCode'] == 'URL_NOT_FOUND'){
+            header('Location:manage-ticket');
+        }else{
+            header('Location:dashboard');
+        }
+        exit(0); 
+    }
+}else{
+    $_SESSION['error'] = 'Invalid url.'; // Invalid url
+    header('Location:manage-ticket');
+    exit(0);
+}
 if(isset($_POST['btnAddTicket'])){
     $postData =  array(
         "subject" => trim($_POST['txtSubject']),
         "category" => $_POST['sltCategory'],
-        "departmentId"=>$_POST['sltDepartment'],
-        "contactId"=> "7189000001708001",
-        "productId"=> null,
         "priority"=> trim($_POST['txtPriority']),
         "description"=> trim($_POST['txtDescription']),
         "email"=> trim($_POST['txtEmail']),
         "phone"=> trim($_POST['txtPhone']),
-        "status"=> "Open"
     );
-    include 'includes/refresh-token.php';  // API Call function inclded
-    $get_data = callAPI('POST', 'https://desk.zoho.in/api/v1/tickets', json_encode($postData)); // API Call  
+    $get_data = callAPI('PUT', 'https://desk.zoho.in/api/v1/tickets/'.$ticketId.'', json_encode($postData)); // API Call  
     $response = json_decode($get_data, true); // Decode json to array 
+    error_log(json_encode($response['errorCode']));
     if(!empty($response['errorCode'])){
         if($response['errorCode'] == 'INVALID_DATA'){
             $_SESSION['error'] = $response['message'].' at '.$response['errors'][0]['fieldName']; // if invalid data
@@ -24,11 +41,11 @@ if(isset($_POST['btnAddTicket'])){
             $_SESSION['error'] = $response['message']; // if invalid token 
         }
     }else if(!empty($response['modifiedTime'])){
-        $_SESSION['success'] = 'Ticket has been added successfully.'; // if success
+        $_SESSION['success'] = 'Ticket has been updated successfully.'; // if success
     }else{
         $_SESSION['error'] = 'Something went wrong, Please try again later.'; // if connection failed
     }
-    header('Location:add-ticket');
+    header('Location:edit-ticket.php?ticketId='.$_GET['ticketId']);
     exit(0);
 }
 ?>
@@ -59,10 +76,11 @@ if(isset($_POST['btnAddTicket'])){
                     <div class="card">
                         <form id="form_validation" method="POST">
                             <div class="header">
-                                <h2>Add Ticket</h2>
+                                <h2>Edit Ticket</h2>
                                 <ul class="header-dropdown m-r--5">
                                     <li class="dropdown">
-                                        <button class="btn btn-success waves-effect" name="btnAddTicket" type="submit">SUBMIT</button>
+                                        <button class="btn btn-warning waves-effect" name="btnAddTicket" type="reset">Back</button>
+                                        <button class="btn btn-success waves-effect" name="btnAddTicket" type="submit">UPDATE</button>
                                     </li>
                                 </ul>
                             </div>
@@ -73,12 +91,12 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-6">
                                     <div class="form-group form-float clearfix">
                                         <div class="form-line">
-                                            <select class="form-control" name="sltDepartment" title="Select Department" required>
+                                            <select class="form-control" name="sltDepartment" title="Select Department" required disabled>
                                                 <optgroup label="Select Department">
-                                                <option value="7189000000051431">PWSLab DevOps Support</option>
-                                                <option value="7189000001062045">iSupport</option>
-                                                <option value="7189000001896319">Naveena</option>
-                                                <option value="7189000002187084">omjit</option>
+                                                <option value="7189000000051431" <?php echo ($response['departmentId'] == '7189000000051431' ? 'selected' : '')?>>PWSLab DevOps Support</option>
+                                                <option value="7189000001062045" <?php echo ($response['departmentId'] == '7189000001062045' ? 'selected' : '')?>>iSupport</option>
+                                                <option value="7189000001896319" <?php echo ($response['departmentId'] == '7189000001896319' ? 'selected' : '')?>>Naveena</option>
+                                                <option value="7189000002187084" <?php echo ($response['departmentId'] == '7189000002187084' ? 'selected' : '')?>>omjit</option>
                                                 </optgroup>
                                             </select>
                                         </div>
@@ -89,12 +107,13 @@ if(isset($_POST['btnAddTicket'])){
                                         <div class="form-line">
                                             <select class="form-control" name="sltCategory" title="Select Category" required>
                                                 <optgroup label="Select Category">
-                                                <option value="NEW Project CI/CD Pipeline Setup">NEW Project CI/CD Pipeline Setup</option>
-                                                <option value="CI/CD pipeline failure">CI/CD pipeline failure</option>
-                                                <option value="Automated Deployment failure">Automated Deployment failure</option>
-                                                <option value="Kubernetes Deployments (like EKS/GCP)">Kubernetes Deployments (like EKS/GCP)</option>
-                                                <option value="general">General</option>
-                                                <option value="update_project">Update Project</option>
+                                                <option value="NEW Project CI/CD Pipeline Setup" <?php echo ($response['category'] == 'NEW Project CI/CD Pipeline Setup' ? 'selected' : '')?> >NEW Project CI/CD Pipeline Setup</option>
+                                                <option value="CI/CD pipeline failure" <?php echo ($response['category'] == 'CI/CD pipeline failure' ? 'selected' : '')?> >CI/CD pipeline failure</option>
+                                                <option value="Automated Deployment failure" <?php echo ($response['category'] == 'Automated Deployment failure' ? 'selected' : '')?> >Automated Deployment failure</option>
+                                                <option value="Kubernetes Deployments (like EKS/GCP)" <?php echo ($response['category'] == 'Kubernetes Deployments (like EKS/GCP)' ? 'selected' : '')?> >Kubernetes Deployments (like EKS/GCP)</option>
+                                                <option value="Kubernetes Deployments (like EKS/GCP)" <?php echo ($response['category'] == 'Kubernetes Deployments (like EKS/GCP)' ? 'selected' : '')?> >Kubernetes Deployments (like EKS/GCP)</option>
+                                                <option value="general" <?php echo ($response['category'] == 'general' ? 'selected' : '')?> >General</option>
+                                                <option value="update_project" <?php echo ($response['category'] == 'update_project' ? 'selected' : '')?> >Update Project</option>
                                                 </optgroup>
                                             </select>
                                         </div>
@@ -103,7 +122,7 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-6">
                                     <div class="form-group form-float clearfix">
                                         <div class="form-line">
-                                            <input type="text" class="form-control" name="txtSubject" required maxlength="60">
+                                            <input type="text" class="form-control" name="txtSubject" value="<?php echo (!empty($response['subject']) ? $response['subject'] : '')?>" required maxlength="60">
                                             <label class="form-label">Subject</label>
                                         </div>
                                     </div>
@@ -111,7 +130,7 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-6">
                                     <div class="form-group form-float clearfix">
                                         <div class="form-line">
-                                            <input type="text" class="form-control" name="txtPriority" required maxlength="60">
+                                            <input type="text" value="<?php echo (!empty($response['priority']) ? $response['priority'] : '')?>" class="form-control" name="txtPriority" required maxlength="60">
                                             <label class="form-label">Priority</label>
                                         </div>
                                     </div>
@@ -119,8 +138,8 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-12">
                                     <div class="form-group clearfix">
                                         <label class="form-label"> Description </label>
-                                        <div class="form-line">
-                                            <textarea class="form-control" name="txtDescription" required maxlength="60"></textarea>
+                                        <div class="for m-line">
+                                            <textarea class="form-control" name="txtDescription" required maxlength="60"><?php echo (!empty($response['description']) ? $response['description'] : '')?></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -129,15 +148,7 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-6">
                                     <div class="form-group form-float clearfix">
                                         <div class="form-line">
-                                            <input type="text" class="form-control" value="<?php echo $getLoggedData['fullName'];?>" name="txtContName" required maxlength="60">
-                                            <label class="form-label">Contact Name</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6">
-                                    <div class="form-group form-float clearfix">
-                                        <div class="form-line">
-                                            <input type="text" class="form-control" value="<?php echo $getLoggedData['email_id'];?>" name="txtEmail" required maxlength="60">
+                                            <input type="text" class="form-control" value="<?php echo (!empty($response['email']) ? $response['email'] : '')?>" name="txtEmail" required maxlength="60">
                                             <label class="form-label">Email</label>
                                         </div>
                                     </div>
@@ -145,7 +156,7 @@ if(isset($_POST['btnAddTicket'])){
                                 <div class="col-sm-6">
                                     <div class="form-group form-float clearfix">
                                         <div class="form-line">
-                                            <input type="text" class="form-control" value="<?php echo $getLoggedData['mobile_number'];?>" name="txtPhone" required maxlength="60">
+                                            <input type="text" class="form-control" value="<?php echo (!empty($response['phone']) ? $response['phone'] : '')?>" name="txtPhone" required maxlength="60">
                                             <label class="form-label">Phone</label>
                                         </div>
                                     </div>

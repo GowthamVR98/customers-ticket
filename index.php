@@ -157,7 +157,7 @@
                     type: colorName,
                     allow_dismiss: allowDismiss,
                     newest_on_top: true,
-                    timer: 1000,
+                    timer: 3000,
                     placement: {
                         from: placementFrom,
                         align: placementAlign

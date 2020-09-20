@@ -2,28 +2,28 @@
 include 'includes/admin-config.php';
 include_once 'auth.php';
 include 'includes/emp-crypto-graphy.php';
-$dbobj = new GetCommomOperation();
 $SafeCrypto = new SafeCrypto();
-if(isset($_POST['btnskill'])){
-    $checkExists = $dbobj->check_exist($dbh, TBL_PRIFIX.'course_master',array('course_id'), 'course = ?', array(trim($_POST['txtSkill'])));
-    if($checkExists){
-        $_SESSION['error'] = 'course already exist.';
-        header('location:alumni-add-course.php');
-        exit(0);
-    }else{
-        $loginSessionId = $dbobj->getSessionId();
-        $values = array(trim($_POST['txtCode']),trim($_POST['txtSkill']),trim($_POST['sltCourseType']),trim($_POST['txtCount']),CURRENT_DT,$loginSessionId,$_SERVER['REMOTE_ADDR']);
-        $result = $dbobj->InsertQuery($dbh, TBL_PRIFIX.'course_master', array('course_code','course','course_type','year_sem_count','added_date','added_by','added_ip'), $values);
-        if($result['status']){
-            $_SESSION['success'] = 'New course has been added successfully.';
-            header('location:alumni-add-course.php');
-            exit(0);
-        }else{
-            $_SESSION['error'] = 'Something went to wrong.';
-            header('location:alumni-add-course.php');
-            exit(0);
-        }
+include 'includes/refresh-token.php';  // API Call function inclded
+// $get_data = callAPI('GET', 'https://desk.zoho.in/api/v1/tickets', false); // API Call  
+$get_data = callAPI('GET', 'https://desk.zoho.in/api/v1/associatedTickets?include=contacts', false); // API Call  
+$response = json_decode($get_data, true); // Decode json to array
+if(!empty($response['errorCode'])){
+    $_SESSION['error'] = $response['message']; // if invalid token
+    header('Location:dashboard');
+    exit(0); 
+}
+function getDepartment($deptId){
+    $department = array(
+        '7189000000051431' => 'PWSLab DevOps Support',
+        '7189000001062045' => 'iSupport',
+        '7189000001896319' => 'Naveena',
+        '7189000002187084' => 'omjit',
+    ); 
+    $departmentName = '-';
+    if(!empty($department[$deptId])){
+        $departmentName = $department[$deptId];
     }
+    return ucfirst($departmentName);
 }
 ?>
 <!DOCTYPE html>
@@ -53,7 +53,7 @@ if(isset($_POST['btnskill'])){
                     <div class="card">
                         <div class="header">
                             <h2>
-                                Manage Ticket
+                                Manage Tickets
                             </h2>
                             <ul class="header-dropdown m-r--5">
                                 <li class="dropdown">
@@ -70,49 +70,42 @@ if(isset($_POST['btnskill'])){
                         </div>
                         <div class="body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-striped table-hover js-basic-example dataTable">
+                                <table class="table table-bordered table-striped table-hover js-basic-example" id="ticketTable">
                                     <thead>
                                         <tr>
                                             <th>Ticket Id</th>
                                             <th>Subject</th>
                                             <th>Department</th>
                                             <th>Category</th>
-                                            <th>Cantact Name</th>
                                             <th>Email</th>
                                             <th>Phone</th>
+                                            <th>Status</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php 
-                                        $sql = "SELECT concat_ws(' ',T1.fname,T1.lname) as Name, T2.year_sem_count,T2.course_id,T2.course_type,T2.course_code ,T2.course,T2.status,T2.added_date,T2.added_by FROM ".TBL_PRIFIX."course_master as T2 LEFT JOIN  ".TBL_PRIFIX."user_login_details as T1 ON T1.user_id = T2.added_by ORDER BY T2.course_id ASC";
-                                        $stmt = $dbh->prepare($sql);
-                                        $stmt->execute();
-                                        $rowCount = $stmt->rowCount();
-                                        if ($rowCount > 0) {
-                                                for ($i = 1; $i <= $rowCount; $i++) {
-                                                    $result['values'][] = $stmt->fetch(PDO::FETCH_ASSOC);
-                                                }
-                                                foreach($result['values'] as $row){
-                                                    echo '<tr>';
-                                                    echo '<td>'.$row['course_code'].'</td>';
-                                                    echo '<td>'.$row['course'].'</td>';
-                                                    echo '<td>'.$row['course_type'].'</td>';
-                                                    echo '<td>'.$row['year_sem_count'].'</td>';
-                                                    echo '<td>'.AppDate::date($row['added_date']).'</td>';
-                                                    echo '<td>'.$row['Name'].'</td>';
+                                        if(!empty($response['data'])){
+                                            foreach($response['data'] as $ticketData){
+                                                echo '<tr>';
+                                                    echo '<td>'.$ticketData['ticketNumber'].'</td>';
+                                                    echo '<td>'.ucfirst($ticketData['subject']).'</td>';
+                                                    echo '<td>'.getDepartment($ticketData['departmentId']).'</td>';
+                                                    echo '<td>'.(!empty($ticketData['category']) ? ucfirst($ticketData['category']) : '-').'</td>';
+                                                    echo '<td>'.$ticketData['email'].'</td>';
+                                                    echo '<td>'.(!empty($ticketData['phone']) ? $ticketData['phone'] : '-').'</td>';
+                                                    echo '<td>'.$ticketData['status'].'</td>';
                                                     echo '<td style="text-align:center;">
-                                                    '.($row['status'] == 1 ? '<a href="javascript:void(0);" class="ManageAction" id="disable_'.$row['course_id'].'"><i class="material-icons" title = "Disable" style="font-size:21px;">block</i></a>' : '<a href="javascript:void(0);" class="ManageAction" id="enable_'.$row['course_id'].'"><i class="material-icons" style="font-size:21px;" title="Enable">check_circle</i></a>').'
-                                                    <a href="alumni-edit-course.php?courseId='.$SafeCrypto->encrypt($row['course_id']).'"><i class="material-icons" title="Edit" id="'.$row['course_id'].'" style=" font-size:21px;">edit</i></a>';
-                                                   $exists = $dbobj->selectData($dbh, TBL_PRIFIX.'user_login_details', array('user_id'), 'course_id = ?', array($row['course_id']));
-                                                    if($exists['total'] == 0){
-                                                        echo '<a href="javascript:void(0);" class="ManageAction" id="delete_'.$row['course_id'].'"><i class="material-icons" title="Delete" style="color:#e21313; font-size:21px;">delete</i></a>';
-                                                    }
+                                                    <a href="javascript:void(0)" class="ticketAction" id="'.$SafeCrypto->encrypt($ticketData['id']).'"><i class="material-icons" title="View" style=" font-size:21px;">visibility</i></a>
+                                                    <a href="edit-ticket.php?ticketId='.$SafeCrypto->encrypt($ticketData['id']).'"><i class="material-icons" title="Edit" id="'.$ticketData['id'].'" style=" font-size:21px;">edit</i></a>';
                                                     echo '</td>';
-                                                    echo '</tr>';
-                                                }
-                                            }else{
+                                                echo '</tr>';
                                             }
+                                        }else{
+                                            echo '<tr>';
+                                                echo '<td colspan="8" style="text-align:center;">No Record Found</td>';
+                                            echo '</tr>';
+                                        }
                                         ?>
                                     </tbody>
                                 </table>
@@ -123,23 +116,37 @@ if(isset($_POST['btnskill'])){
             </div>
             <!-- #END# Basic Examples -->
         </div>
+        <div class="modal fade" id="TicketViewModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="TicketViewModal">View Ticket Details</h4>
+                    </div>
+                    <div class="modal-body"></div> 
+                </div>
+            </div>
+        </div>
     </section>
     <?php include ALUM_TEMPLATES.'footer.php';?> 
     <script>
-        $(document).ready(function(){
-            $('.ManageAction').on('click',function(){
-                var id = $(this).attr('id');
-                var Splitvalue = id.split('_');
-                if (confirm('Are you sure you want '+Splitvalue[0]+'?')) {
-                    $.ajax({
-                        type:'POST',
-                        url:'ajax/ajax-manage-course.php',
-                        data:Splitvalue[0]+'='+Splitvalue[1],
-                        success: function(response){
-                            window.location.reload();                           
+        $(document).ready(function(){ 
+            $('body').on('click','.ticketAction',function(e){
+                e.preventDefault();
+                var id = $(this).attr('id'); 
+                $.ajax({
+                    type:'POST',
+                    url:'ajax/ajax-action.php',
+                    data:'TicketAction=true&ticketId'+'='+id,
+                    success: function(response){
+                        let responseObj = JSON.parse(response);
+                        if(responseObj.status == true){
+                            $('#TicketViewModal').modal();
+                            $('#TicketViewModal .modal-body').html(responseObj.responseData);
+                        }else{
+                            showNotification('alert-danger', responseObj.msg, 'top', 'center', '', '');
                         }
-                    });
-                }
+                    }
+                });
             });
         });
     </script>
