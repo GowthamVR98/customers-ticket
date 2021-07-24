@@ -14,7 +14,6 @@ if(isset($_POST['btnAddTicket'])){
         "phone"=> trim($_POST['txtPhone']),
         "status"=> "Open"
     );
-    
     include 'includes/refresh-token.php';  // API Call function inclded
     $get_data = callAPI('POST', 'https://desk.zoho.in/api/v1/tickets', json_encode($postData)); // API Call  
     $response = json_decode($get_data, true); // Decode json to array 
@@ -32,6 +31,7 @@ if(isset($_POST['btnAddTicket'])){
     header('Location:add-ticket');
     exit(0);
 }
+
 ?>
 <!DOCTYPE html>
 <html>
